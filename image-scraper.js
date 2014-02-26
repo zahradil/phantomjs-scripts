@@ -37,6 +37,8 @@ var BASE64_DECODE_CHARS = new Array(
     41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1, -1, -1
 );
 
+// helper function for serialize/deserialize of data from webpage
+// environment
 function decode(str) {
     /*jshint maxstatements:30, maxcomplexity:30 */
     var c1, c2, c3, c4, i = 0, len = str.length, out = "";
@@ -80,6 +82,9 @@ function decode(str) {
 };
 
 function _internal_download_file_in_page(url) {
+    
+    // helper function encode for serialize/deserialize 
+    // of data from webpage environment
     var BASE64_ENCODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
      /**
      * Base64 encodes a string, even binary ones. Succeeds where
@@ -148,6 +153,8 @@ function _internal_download_file_in_page(url) {
         return xhr.responseText;
     };
 
+    // main code that is executed within webpage 
+    // this fragment downloads the file and serializes it back to phantomjs
     try {
         data = sendAJAX(url, false, null, false);
     } catch (e) {
@@ -162,12 +169,22 @@ function _internal_download_file_in_page(url) {
     return encode(data);
 };
 
+/* function to be called for downloading file
+   first parameter has to be a live webpage
+   with correct setup (webSecurityEnabled etc.)
+   please note, that main phantomjs environment cannot be used.
+  
+      pg - webpage object to be used for environment
+      url - url to download
+      fn - local filename where to save downloaded file data
+*/
 function page_download_file(pg, url, fn) {
     var output = pg.evaluate(_internal_download_file_in_page, url);
     fs.write(fn, decode(output), 'wb');
 }
 
-// ----------------------------------------------------------------------------
+
+// main entrypoint - parsing script parameters
 
 var system = require('system'), URL, SAVE_DIR, JQUERY_SELECTOR;
 if (system.args.length < 4) {
@@ -182,6 +199,7 @@ JQUERY_SELECTOR = system.args.slice(3, system.args.length).join(" ");
 
 console.log("scraping images, saving to ["+SAVE_DIR+"]");
 
+// few helper funtions
 function getval(arr, name) {
     var i, iLen;
     for (i=0, iLen = arr.length; i<iLen; ++i) {
@@ -203,6 +221,8 @@ function base_name(str)
    return base;
 }
 
+// setup environment and load the main page
+
 var page = webpage.create();
 page.settings.loadImages = false;
 page.settings.webSecurityEnabled = false;
@@ -211,6 +231,9 @@ page.settings.webSecurityEnabled = false;
 //     // for debugging
 //     console.log(msg);
 // };
+
+// helper - this is not required, but it abort few
+//          unescessary requests - it speeds up processing
 page.onResourceRequested = function(requestData, networkRequest) {
         if (requestData.id == 1) { return; }
         accept = getval(requestData.headers, "Accept");
@@ -234,6 +257,8 @@ page.open(URL, function(status) {
         console.log('Unable to load the address!');
         phantom.exit();
     } else {
+      
+        // collect the links
         var out = page.evaluate(function(sel) {
             var arr = new Array();
             jQuery(sel).each(function(index, el) {
@@ -242,9 +267,11 @@ page.open(URL, function(status) {
             return arr;
         }, JQUERY_SELECTOR);
 
+        // reconfigure page for download
         page.settings.loadImages = true;
         page.onResourceRequested = null;
-
+        
+        // download files sequentially
         var i, name, pocet;
         pocet = 0;
         for(i=0; i<out.length; i++) {
