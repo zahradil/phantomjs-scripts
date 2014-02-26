@@ -1,7 +1,7 @@
 phantomjs-scripts
 =================
 
-Some note very useful scripts to be used with phantomjs
+Some note very useful scripts to be used with [PhantomJS](http://phantomjs.org/).
 
 image-scraper.js
 ----------------
